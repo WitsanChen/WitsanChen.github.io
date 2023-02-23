@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>TCP 和 UDP 通信</title>
+    <url>/2023/02/23/TCP%E5%92%8CUDP%E9%80%9A%E4%BF%A1/</url>
+    <content><![CDATA[<p>介绍了 TCP 和 UDP 的通信方法</p>
+<span id="more"></span>
+
+<p><img src="/2023/02/23/TCP%E5%92%8CUDP%E9%80%9A%E4%BF%A1/1677032656094.png" alt="1677032656094"></p>
+<p><img src="/2023/02/23/TCP%E5%92%8CUDP%E9%80%9A%E4%BF%A1/image-20230222102619312.png" alt="image-20230222102619312"></p>
+<p><img src="/2023/02/23/TCP%E5%92%8CUDP%E9%80%9A%E4%BF%A1/image-20230222102659154.png" alt="image-20230222102659154"></p>
+<p><img src="/2023/02/23/TCP%E5%92%8CUDP%E9%80%9A%E4%BF%A1/image-20230222111345907.png" alt="image-20230222111345907"></p>
+<p><img src="/2023/02/23/TCP%E5%92%8CUDP%E9%80%9A%E4%BF%A1/image-20230222111330936.png" alt="image-20230222111330936"></p>
+<h1 id="socket-创建套接字"><a href="#socket-创建套接字" class="headerlink" title="socket( ): 创建套接字"></a>socket ( ): 创建套接字</h1><p>Linux 中的一切都是文件，使用 socket () 函数创建套接字以后，返回值就是一个 int 类型的文件描述符。</p>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">int socket(int af, int type, int protocol);</span><br></pre></td></tr></tbody></table></figure>
+<p><strong>地址族（Address Family）af</strong> </p>
+<blockquote>
+<ul>
+<li><p> 地址族也就是 IP 地址类型，常用的有 AF_INET 和 AF_INET6。</p>
+</li>
+<li><p>AF 是 “Address Family” 的简写，INET 是 “Inetnet” 的简写。</p>
+</li>
+<li><p>AF_INET 表示 IPv4 地址，例如 127.0.0.1；</p>
+</li>
+<li><p>AF_INET6 表示 IPv6 地址，例如 1030::C9B4:FF12:48AA:1A2B。</p>
+</li>
+<li><p><code>127.0.0.1</code> 是一个特殊 IP 地址，表示本机地址，后面的教程会经常用到。</p>
+</li>
+<li><p>也可以使用 PF 前缀，PF 是 “Protocol Family” 的简写，它和 AF 是一样的。例如，PF_INET 等价于 AF_INET，PF_INET6 等价于 AF_INET6。</p>
+</li>
+</ul>
+</blockquote>
+<p><strong>数据传输方式 / 套接字类型 type</strong></p>
+<blockquote>
+<p>常用的有 SOCK_STREAM（流格式套接字 / 面向连接的套接字） 和 SOCK_DGRAM（数据报套接字 / 无连接的套接字）。</p>
+</blockquote>
+<p><strong>传输协议 protocol</strong></p>
+<blockquote>
+<p>常用的有 <code>IPPROTO_TCP</code> 和 <code>IPPTOTO_UDP</code>，分别表示 <code>TCP 传输协议</code> 和 <code>UDP 传输协议</code>。</p>
+<p>一般情况下有了 <code>af</code> 和 <code>type</code> 两个参数就可以创建套接字了，操作系统会自动推演出协议类型。除非遇到这样的情况：有两种不同的协议支持同一种地址类型和数据传输类型。如果我们不指明使用哪种协议，操作系统是没办法自动推演的。</p>
+</blockquote>
+<p>本教程使用 <code>IPv4</code> 地址，参数 <code>af</code> 的值为 <code>PF_INET</code>。如果使用 <code>SOCK_STREAM</code> 传输数据，那么满足这两个条件的协议只有 <code>TCP</code>，因此可以这样来调用 <code>socket()</code> 函数：</p>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">int tcp_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);  //IPPROTO_TCP表示TCP协议</span><br></pre></td></tr></tbody></table></figure>
+
+<p>这种套接字称为 TCP 套接字。</p>
+<p>如果使用 <code>SOCK_DGRAM</code> 传输方式，那么满足这两个条件的协议只有 <code>UDP</code>，因此可以这样来调用 <code>socket()</code> 函数：</p>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">int udp_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);  //IPPROTO_UDP表示UDP协议</span><br></pre></td></tr></tbody></table></figure>
+
+<p>这种套接字称为 <code>UDP</code> 套接字。</p>
+<p>上面两种情况都只有一种协议满足条件，可以将 <code>protocol</code> 的值设为 <code>0</code>，系统会自动推演出应该使用什么协议，如下所示：</p>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">int tcp_socket = socket(AF_INET, SOCK_STREAM, 0);  //创建TCP套接字</span><br><span class="line">int udp_socket = socket(AF_INET, SOCK_DGRAM, 0);  //创建UDP套接字</span><br></pre></td></tr></tbody></table></figure>
+
+<p>后面的教程中多采用这种简化写法。</p>
+<h1 id="bind-和-connect-绑定套接字并建立链接"><a href="#bind-和-connect-绑定套接字并建立链接" class="headerlink" title="bind() 和 connect(): 绑定套接字并建立链接"></a><code>bind()</code> 和 <code>connect()</code>: 绑定套接字并建立链接</h1><p><code>socket()</code> 函数用来创建套接字，确定套接字的各种属性，然后<strong>服务器端要用 <code>bind()</code> 函数</strong>将<code>套接字</code>与特定的 <code>IP 地址</code>和<code>端口</code>绑定起来。只有这样，流经该 <code>IP 地址</code> 和 <code>端口</code> 的数据才能交给 <code>套接字</code> 处理。类似地，<strong>客户端也要用 <code>connect()</code> 函数</strong>建立连接。</p>
+<h2 id="bind-函数"><a href="#bind-函数" class="headerlink" title="bind() 函数"></a>bind () 函数</h2><p><code>bind()</code> 函数的原型为：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">bind</span><span class="params">(<span class="type">int</span> sock, <span class="keyword">struct</span> sockaddr *addr, <span class="type">socklen_t</span> addrlen)</span></span>;  <span class="comment">//Linux</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p><code>sock</code> 为 <code>socket</code> 文件描述符，<code>addr</code> 为 <code>sockaddr</code> 结构体变量的指针，<code>addrlen</code> 为 <code>addr</code> 变量的大小，可由 <code>sizeof()</code> 计算得出。</p>
+<p>下面的代码，将创建的套接字与 IP 地址 127.0.0.1、端口 1234 绑定：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment">//创建套接字</span></span><br><span class="line"><span class="type">int</span> serv_sock = <span class="built_in">socket</span>(AF_INET, SOCK_STREAM, IPPROTO_TCP);</span><br><span class="line"></span><br><span class="line"><span class="comment">//创建sockaddr_in结构体变量</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">sockaddr_in</span> serv_addr;</span><br><span class="line"><span class="built_in">memset</span>(&amp;serv_addr, <span class="number">0</span>, <span class="built_in">sizeof</span>(serv_addr));  <span class="comment">//每个字节都用0填充</span></span><br><span class="line">serv_addr.sin_family = AF_INET;  <span class="comment">//使用IPv4地址</span></span><br><span class="line">serv_addr.sin_addr.s_addr = <span class="built_in">inet_addr</span>(<span class="string">"127.0.0.1"</span>);  <span class="comment">//具体的IP地址</span></span><br><span class="line">serv_addr.sin_port = <span class="built_in">htons</span>(<span class="number">1234</span>);  <span class="comment">//端口</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//将套接字和IP、端口绑定</span></span><br><span class="line"><span class="built_in">bind</span>(serv_sock, (<span class="keyword">struct</span> sockaddr*)&amp;serv_addr, <span class="built_in">sizeof</span>(serv_addr));</span><br></pre></td></tr></tbody></table></figure>
+
+<p>这里我们使用 sockaddr_in 结构体，然后再强制转换为 sockaddr 类型，后边会讲解为什么这样做。</p>
+<h4 id="sockaddr-in-结构体"><a href="#sockaddr-in-结构体" class="headerlink" title="sockaddr_in 结构体"></a>sockaddr_in 结构体</h4><p>接下来不妨先看一下 sockaddr_in 结构体，它的成员变量如下：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">sockaddr_in</span>{</span><br><span class="line">    <span class="type">sa_family_t</span>     sin_family;   <span class="comment">//地址族（Address Family），也就是地址类型</span></span><br><span class="line">    <span class="type">uint16_t</span>        sin_port;     <span class="comment">//16位的端口号</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">in_addr</span>  sin_addr;     <span class="comment">//32位IP地址</span></span><br><span class="line">    <span class="type">char</span>            sin_zero[<span class="number">8</span>];  <span class="comment">//不使用，一般用0填充</span></span><br><span class="line">};</span><br></pre></td></tr></tbody></table></figure>
+
+<blockquote>
+<ul>
+<li><p><code>sin_family</code> 和 <code>socket()</code> 的第一个参数的含义相同，取值也要保持一致。</p>
+</li>
+<li><p><code>sin_prot</code> 为端口号。uint16_t 的长度为<strong>两个字节</strong>，理论上端口号的取值范围为 <code>0~65536</code>，但 <code>0~1023</code> 的端口一般由系统分配给特定的服务程序，例如 Web 服务的端口号为 80，FTP 服务的端口号为 21，所以我们的程序要尽量在 <code>1024~65536</code> 之间分配端口号。</p>
+</li>
+<li><p>端口号需要用 <code>htons()</code> 函数转换，后面会讲解为什么。</p>
+</li>
+<li><p><code>sin_addr</code> 是 <code>struct in_addr</code> 结构体类型的变量，下面会详细讲解。</p>
+</li>
+<li><p><code>sin_zero[8]</code> 是多余的 <code>8</code> 个字节，没有用，一般使用 <code>memset()</code> 函数填充为 <code>0</code>。上面的代码中，先用 <code>memset()</code> 将结构体的全部字节填充为 <code>0</code>，再给前 <code>3</code> 个成员赋值，剩下的 <code>sin_zero</code> 自然就是 <code>0</code> 了。</p>
+</li>
+</ul>
+</blockquote>
+<h4 id="in-addr-结构体"><a href="#in-addr-结构体" class="headerlink" title="in_addr 结构体"></a>in_addr 结构体</h4><p>sockaddr_in 的第 3 个成员是 in_addr 类型的结构体，该结构体只包含一个成员，如下所示：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">in_addr</span>{</span><br><span class="line">    <span class="type">in_addr_t</span>  s_addr;  <span class="comment">//32位的IP地址</span></span><br><span class="line">};</span><br></pre></td></tr></tbody></table></figure>
+
+<p><code>in_addr_t</code> 在头文件 <code>&lt;netinet/in.h&gt;</code> 中定义，等价于 <code>unsigned long</code>，长度为 4 个字节。也就是说，<code>s_addr</code> 是一个整数，而 <code>IP</code> 地址是一个字符串，所以需要 <code>inet_addr()</code>  函数进行转换，例如：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="type">unsigned</span> <span class="type">long</span> ip = <span class="built_in">inet_addr</span>(<span class="string">"127.0.0.1"</span>);<span class="comment">//将点分十进制IP转换成网络字节序IP</span></span><br><span class="line"><span class="built_in">printf</span>(<span class="string">"%ld\n"</span>, ip);</span><br></pre></td></tr></tbody></table></figure>
+
+<p>运行结果：<br>16777343</p>
+<p><img src="/2023/02/23/TCP%E5%92%8CUDP%E9%80%9A%E4%BF%A1/112P63295-0.jpg" alt="图解 sockaddr_in 结构体"></p>
+<p>为什么要搞这么复杂，结构体中嵌套结构体，而不用 sockaddr_in 的一个成员变量来指明 IP 地址呢？socket () 函数的第一个参数已经指明了地址类型，为什么在 sockaddr_in 结构体中还要再说明一次呢，这不是啰嗦吗？</p>
+<p>这些繁琐的细节确实给初学者带来了一定的障碍，我想，这或许是历史原因吧，后面的接口总要兼容前面的代码。各位读者一定要有耐心，暂时不理解没有关系，根据教程中的代码 “照猫画虎” 即可，时间久了自然会接受。</p>
+<h4 id="为什么使用-sockaddr-in-而不使用-sockaddr"><a href="#为什么使用-sockaddr-in-而不使用-sockaddr" class="headerlink" title="为什么使用 sockaddr_in 而不使用 sockaddr"></a>为什么使用 sockaddr_in 而不使用 sockaddr</h4><p><code>bind()</code> 第二个参数的类型为 <code>sockaddr</code>，而代码中却使用 <code>sockaddr_in</code>，然后再强制转换为 <code>sockaddr</code>，这是为什么呢？</p>
+<p>sockaddr 结构体的定义如下：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">sockaddr</span>{</span><br><span class="line">    <span class="type">sa_family_t</span>  sin_family;   <span class="comment">//地址族（Address Family），也就是地址类型</span></span><br><span class="line">    <span class="type">char</span>         sa_data[<span class="number">14</span>];  <span class="comment">//IP地址和端口号</span></span><br><span class="line">};</span><br></pre></td></tr></tbody></table></figure>
+
+<p>下图是 <code>sockaddr</code> 与 <code>sockaddr_in</code> 的对比（括号中的数字表示所占用的字节数）：</p>
+<p><img src="/2023/02/23/TCP%E5%92%8CUDP%E9%80%9A%E4%BF%A1/112PA615-1.jpg" alt="img"></p>
+<p><strong><code>sockaddr</code> 和 <code>sockaddr_in</code> 的长度相同，都是 16 字节</strong>，只是将 IP 地址和端口号合并到一起，用一个成员 sa_data 表示。要想给 sa_data 赋值，必须同时指明 IP 地址和端口号，例如”127.0.0.1:80“，遗憾的是，没有相关函数将这个字符串转换成需要的形式，也就很难给 sockaddr 类型的变量赋值，所以使用 sockaddr_in 来代替。这两个结构体的长度相同，强制转换类型时不会丢失字节，也没有多余的字节。</p>
+<p>可以认为，sockaddr 是一种通用的结构体，可以用来保存多种类型的 IP 地址和端口号，而 sockaddr_in 是专门用来保存 IPv4 地址的结构体。另外还有 sockaddr_in6，用来保存 IPv6 地址，它的定义如下：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">sockaddr_in6</span> {</span><br><span class="line">    <span class="type">sa_family_t</span> sin6_family;  <span class="comment">//(2)地址类型，取值为AF_INET6</span></span><br><span class="line">    <span class="type">in_port_t</span> sin6_port;  <span class="comment">//(2)16位端口号</span></span><br><span class="line">    <span class="type">uint32_t</span> sin6_flowinfo;  <span class="comment">//(4)IPv6流信息</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">in6_addr</span> sin6_addr;  <span class="comment">//(4)具体的IPv6地址</span></span><br><span class="line">    <span class="type">uint32_t</span> sin6_scope_id;  <span class="comment">//(4)接口范围ID</span></span><br><span class="line">};</span><br></pre></td></tr></tbody></table></figure>
+
+<p>正是由于通用结构体 sockaddr 使用不便，才针对不同的地址类型定义了不同的结构体。</p>
+<h2 id="connect-函数"><a href="#connect-函数" class="headerlink" title="connect() 函数"></a>connect () 函数</h2><p><code>connect()</code> 函数用来建立连接，它的原型为：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">connect</span><span class="params">(<span class="type">int</span> sock, <span class="keyword">struct</span> sockaddr *serv_addr, <span class="type">socklen_t</span> addrlen)</span></span>;  <span class="comment">//Linux</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>各个参数的说明和 bind () 相同，不再赘述。</p>
+<h1 id="listen-和accept-：让套接字进入监听状态并响应客户端请求"><a href="#listen-和accept-：让套接字进入监听状态并响应客户端请求" class="headerlink" title="listen()和accept()：让套接字进入监听状态并响应客户端请求"></a>listen () 和 accept ()：让套接字进入监听状态并响应客户端请求</h1><p>对于服务器端程序，使用 <code>bind()</code> 绑定套接字后，还需要使用 <code>listen()</code> 函数让套接字进入被动监听状态，再调用 <code>accept()</code> 函数，就可以随时响应客户端的请求了。</p>
+<h2 id="listen-函数"><a href="#listen-函数" class="headerlink" title="listen() 函数"></a>listen () 函数</h2><p>通过 <code>listen()</code> 函数可以让套接字进入<strong>被动监听</strong>状态，它的原型为：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">listen</span><span class="params">(<span class="type">int</span> sock, <span class="type">int</span> backlog)</span></span>;  <span class="comment">//Linuxint </span></span><br></pre></td></tr></tbody></table></figure>
+
+<p><code>sock</code> 为需要进入监听状态的套接字，<code>backlog</code> 为<strong>请求队列</strong>的最大长度。</p>
+<p>所谓<strong>被动监听</strong>，是指当没有客户端请求时，套接字处于 “睡眠” 状态，只有当接收到客户端请求时，套接字才会被 “唤醒” 来响应请求。</p>
+<h3 id="请求队列"><a href="#请求队列" class="headerlink" title="请求队列"></a>请求队列</h3><p>当套接字正在处理客户端请求时，如果有新的请求进来，套接字是没法处理的，只能把它放进缓冲区，待当前请求处理完毕后，再从缓冲区中读取出来处理。如果不断有新的请求进来，它们就按照先后顺序在缓冲区中排队，直到缓冲区满。这个缓冲区，就称为 <code>请求队列（Request Queue）</code>。</p>
+<p>缓冲区的长度（能存放多少个客户端请求）可以通过 <code>listen()</code> 函数的 <code>backlog</code> 参数指定，但究竟为多少并没有什么标准，可以根据你的需求来定，并发量小的话可以是 10 或者 20。</p>
+<p>如果将 <code>backlog</code> 的值设置为 <code>SOMAXCONN</code>，就由系统来决定请求队列长度，这个值一般比较大，可能是几百，或者更多。</p>
+<p>当请求队列满时，就不再接收新的请求，对于 <code>Linux</code>，客户端会收到 <code>ECONNREFUSED</code> 错误。</p>
+<p>注意：<code>listen()</code> 只是让套接字处于监听状态，并没有接收请求。接收请求需要使用 <code>accept()</code> 函数。</p>
+<h2 id="accept-函数"><a href="#accept-函数" class="headerlink" title="accept() 函数"></a>accept () 函数</h2><p>当套接字处于监听状态时，可以通过 <code>accept()</code> 函数<strong>来接收客户端请求</strong>。它的原型为：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">accept</span><span class="params">(<span class="type">int</span> sock, <span class="keyword">struct</span> sockaddr *addr, <span class="type">socklen_t</span> *addrlen)</span></span>;  <span class="comment">//LinuxSOCKET</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>它的参数与 <code>listen()</code> 和 <code>connect()</code> 是相同的：<code>sock</code> 为服务器端套接字，<code>addr</code>  为 <code>sockaddr_in</code> 结构体变量，<code>addrlen</code> 为参数 <code>addr</code> 的长度，可由 <code>sizeof()</code> 求得。</p>
+<p><code>accept()</code> 返回一个新的套接字来和客户端通信，<code>addr</code> 保存了客户端的 <code>IP地址</code> 和 <code>端口号</code> ，而 <code>sock</code> 是服务器端的套接字，大家注意区分。后面和客户端通信时，要使用这个新生成的套接字，而不是原来服务器端的套接字。</p>
+<p>最后需要说明的是：<code>listen()</code> 只是让套接字进入监听状态，并没有真正接收客户端请求，<code>listen()</code> 后面的代码会继续执行，直到遇到 <code>accept()</code> 。<code>accept()</code>  会阻塞程序执行（后面代码不能被执行），直到有新的请求到来。</p>
+<h1 id="send-x2F-recv-和write-x2F-read-：发送数据和接收数据"><a href="#send-x2F-recv-和write-x2F-read-：发送数据和接收数据" class="headerlink" title="send()/recv()和write()/read()：发送数据和接收数据"></a>send ()/recv () 和 write ()/read ()：发送数据和接收数据</h1><p>在 Linux 平台下，使用不同的函数发送和接收 <code>socket</code> 数据，下面我们分别讲解。</p>
+<h2 id="Linux下数据的接收和发送"><a href="#Linux下数据的接收和发送" class="headerlink" title="Linux下数据的接收和发送"></a>Linux 下数据的接收和发送</h2><p>Linux 不区分套接字文件和普通文件，使用 <code>write()</code> 可以向套接字中写入数据，使用 <code>read()</code> 可以从套接字中读取数据。</p>
+<p>前面我们说过，两台计算机之间的通信相当于两个套接字之间的通信，在服务器端用 <code>write()</code> 向套接字写入数据，客户端就能收到，然后再使用 <code>read()</code> 从套接字中读取出来，就完成了一次通信。</p>
+<p><code>write()</code> 的原型为：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">ssize_t</span> <span class="title">write</span><span class="params">(<span class="type">int</span> fd, <span class="type">const</span> <span class="type">void</span> *buf, <span class="type">size_t</span> nbytes)</span></span>;</span><br></pre></td></tr></tbody></table></figure>
+
+<p><code>fd</code> 为要写入的文件的描述符，<code>buf</code> 为要写入的数据的缓冲区地址，<code>nbytes</code> 为要写入的数据的字节数。</p>
+<blockquote>
+<p>size_t 是通过 typedef 声明的 unsigned int 类型；ssize_t 在 “size_t” 前面加了一个”s”，代表 signed，即 ssize_t 是通过 typedef 声明的 signed int 类型。</p>
+</blockquote>
+<p><code>write()</code> 函数会将缓冲区 <code>buf</code> 中的 <code>nbytes</code> 个字节写入文件 <code>fd</code>，成功则返回写入的字节数，失败则返回 <code>-1</code>。</p>
+<p><code>read()</code> 的原型为：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">ssize_t</span> <span class="title">read</span><span class="params">(<span class="type">int</span> fd, <span class="type">void</span> *buf, <span class="type">size_t</span> nbytes)</span></span>;</span><br></pre></td></tr></tbody></table></figure>
+
+<p><code>fd</code> 为要读取的文件的描述符，<code>buf</code> 为要接收数据的缓冲区地址，<code>nbytes</code> 为要读取的数据的字节数。</p>
+<p><code>read()</code> 函数会从 <code>fd</code> 文件中读取 <code>nbytes</code> 个字节并保存到缓冲区 <code>buf</code>，成功则返回读取到的字节数（但遇到文件结尾则返回 0），失败则返回 -1。</p>
+]]></content>
+      <tags>
+        <tag>WebRTC</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>daemon</title>
+    <url>/2023/02/23/daemon/</url>
+    <content><![CDATA[<h1 id="daemon"><a href="#daemon" class="headerlink" title="daemon"></a>daemon</h1><p>daemon - 编写与打包系统守护进程</p>
+<h1 id="描述"><a href="#描述" class="headerlink" title="描述"></a>描述</h1><p>“守护进程” 的意思是在后台运行的服务进程， 常用于监督系统的运行或者提供某种功能。 在传统的 <code>SysV Unix</code> 系统上， 多个守护进程必须严格按照特定的顺序依次启动。 在” 新型” 的 <code>systemd(1)</code> 系统上， 守护进程的启动顺序非常简单且非常强大。 本手册同时解说了上述两种不同的启动方案， 并特别推荐了应该包含在 <code>systemd</code> 系统中的守护进程。</p>
+<h2 id="传统的SysV守护进程"><a href="#传统的SysV守护进程" class="headerlink" title="传统的SysV守护进程"></a>传统的 <code>SysV</code> 守护进程</h2><p>传统的 <code>SysV</code> 守护进程在启动的时候， 应该在初始化阶段执行下面的步骤：</p>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">1. 关闭除 STDIN STDOUT STDERR 之外的所有文件描述符</span><br><span class="line"></span><br><span class="line">2. 重置所有信号处理器</span><br><span class="line"></span><br><span class="line">3. 重置所有信号掩码</span><br><span class="line"></span><br><span class="line">4. 清理环境变量(重置一部分，移除一部分)</span><br><span class="line"></span><br><span class="line">5. 调用 fork() 创建一个后台进程</span><br><span class="line"></span><br><span class="line">6. 在子进程中调用 setsid() 从终端脱离并创建一个独立的会话</span><br><span class="line"></span><br><span class="line">7. 在子进程中再一次调用 fork() 以确保守护进程永远无法获取任何终端。</span><br><span class="line"></span><br><span class="line">8. 第一个子进程主动退出， 只有第二个子进程(实际的守护进程)保持运行， 并且以 init(PID=1) 为父进程。</span><br><span class="line"></span><br><span class="line">9. 守护进程(第二个子进程)将 STDIN STDOUT STDERR 连接到 /dev/null 虚拟设备</span><br><span class="line"></span><br><span class="line">10. 守护进程将 umask 设为 0</span><br><span class="line"></span><br><span class="line">11. 守护进程将当前目录切换到根目录(/)</span><br><span class="line"></span><br><span class="line">12. 守护进程将自身的PID记录到例如 /run/foobar.pid 这样的文件中</span><br><span class="line"></span><br><span class="line">13. 守护进程丢弃自己不需要的权限(如果可以)</span><br><span class="line"></span><br><span class="line">14. 守护进程通知最初的父进程：初始化工作已完成</span><br><span class="line"></span><br><span class="line">15. 最初的父进程自身退出</span><br></pre></td></tr></tbody></table></figure>
+
+<p>注意，这些步骤对于下文讲述的新型守护进程是不需要的， 除非为了刻意兼容传统的 <code>SysV系统</code>。</p>
+<h2 id="新型守护进程"><a href="#新型守护进程" class="headerlink" title="新型守护进程"></a>新型守护进程</h2><p>Linux 系统上的新型守护进程更容易被监控也更容易实现。</p>
+<p>守护进程无需实现前文所描述的复杂步骤， 即可直接在 <code>systemd</code> 提供的干净的上下文环境中运行：</p>
+<p>环境变量已经被清理、信号处理器与信号掩码已经被重置、没有遗留的文件描述符、守护进程自动在其专属的会话中执行、 <code>标准输入(STDIN)</code> 已被连接到 <code>/dev/null 虚拟设备(除非另有配置)</code>、 <code>标准输出(STDOUT)</code> 与<code>标准错误(STDERR)</code> 已被连接到 <code>systemd-journald.service(8) 日志服务(除非另有配置)</code>、<code>umask</code> 已经被重置 … 等等</p>
+<p>新型守护进程只需要遵守如下要求：</p>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">1. 收到 SIGTERM 信号后 关闭进程并确保干净的退出</span><br><span class="line"></span><br><span class="line">2. 收到 SIGHUP 信号后 重新加载配置文件(若需要)</span><br><span class="line"></span><br><span class="line">3. 主守护进程在退出时应该按照 LSB recommendations for SysV init scripts[1] 的要求返回恰当的退出码，以便于 systemd 判断服务的退出状态。</span><br><span class="line"></span><br><span class="line">4. 若可行，在初始化的最后一步， 通过 D-Bus 创建进程的控制接口， 并在 D-Bus 上注册一个总线名称。</span><br><span class="line"></span><br><span class="line">5. 提供一个 .service 单元文件， 包含如何启动/停止/维护该服务的配置。 详见 systemd.service(5) 手册。</span><br><span class="line"></span><br><span class="line">6. 尽可能依赖于 systemd 的资源控制与权限剥夺功能 (CPU与内存占用/文件访问等等)， 而不要自己实现它们。 详见 systemd.exec(5) 手册。</span><br><span class="line"></span><br><span class="line">7. 若使用了 D-Bus ， 则强烈推荐使用基于 D-Bus 的启动机制。 这样做有许多好处： 守护进程可以按需延迟启动； 可以和依赖于它的进程并行启动(提升启动速度)； 守护进程可以在失败时被自动重启 而不丢失D-Bus总线上的请求(详见下文)</span><br><span class="line"></span><br><span class="line">8. 若守护进程通过套接字提供服务， 则强烈推荐使用基于套接字的启动机制(详见下文)。 这样做有许多好处：守护进程可以按需延迟启动； 可以和依赖于它的进程并行启动(提升启动速度)； 对于无状态协议(例如syslog, DNS)， 守护进程可以在失败时被自动重启而不丢失套接字上的请求(详见下文)</span><br><span class="line"></span><br><span class="line">9. 若可能，守护进程应该通过 sd_notify(3) 接口通知 systemd "启动已完成"或"状态已更新"这样的消息。</span><br><span class="line"></span><br><span class="line">10. 不要使用 syslog() 记录日志， 只需简单的使用 fprintf() 向 STDERR 输出日志即可。 如果必须指明日志等级， 则可以在日志的 行首加上类似 "&lt;4&gt;" 这样的前缀即可(这里表示4级"WARNING")。 详见 sd-daemon(3) 与 systemd.exec(5) 手册。</span><br></pre></td></tr></tbody></table></figure>
+
+<p>上述要求与 Apple MacOS X Daemon Requirements [2] 类似， 但并不完全相同。</p>
+<h1 id="启动"><a href="#启动" class="headerlink" title="启动"></a>启动</h1><p><code>systemd</code> 提供了多种启动机制 (见下文)， 而服务单元也经常同时使用其中的几种。 例如 <code>bluetoothd.service </code>可以在插入蓝牙硬件时被启动， 也可以在某进程访问其 <code>D-Bus 接口</code>时被启动。 又如打印服务可以在 <code>IPP端口</code>有流量接入时被启动， 也可以在插入打印机硬件时被启动， 还可以在有文件进入打印机 <code>spool</code> 目录时被启动。 甚至对于必须在系统启动时无条件启动的服务， 为了尽可能并发启动， 也应该使用某些启动机制。 如果某守护进程实现了一个 <code>D-Bus</code> 服务或者监听一个套接字， 那么使用基于 <code>D-Bus</code> 或基于<code>套接字</code>的启动机制， 将允许该进程与其客户端同时并行启动 (从而加快启动速度)。 因为所有的通信渠道都已事先建立， 并且不会丢失任何客户端请求，同时 <code>D-Bus 总线</code>或者内核会将客户端请求排入队列等候， 直到完成启动。</p>
+<h2 id="系统启动时启动"><a href="#系统启动时启动" class="headerlink" title="系统启动时启动"></a>系统启动时启动</h2><p>传统的守护进程一般是在系统启动时通过 <code>SysV</code> 初始化脚本自动启动， <code>systemd </code>也支持这种启动方式。</p>
+<p>对于 <code>systemd</code> 来说， 如果希望确保某单元在系统启动时自动启动， 那么最佳的做法是在默认启动目标 (通常是 <code>multi-user.target</code> 或 <code>graphical.target</code>) 的 <code>.wants/ </code>目录中为该单元建立软链接。 参见 <code>systemd.unit(5)</code> 手册以了解 <code>.wants/</code> 目录， 参见 <code>systemd.special(7)</code> 手册以了解上述两个特殊的启动目标。</p>
+<h2 id="基于套接字的启动"><a href="#基于套接字的启动" class="headerlink" title="基于套接字的启动"></a>基于套接字的启动</h2><p>为了尽可能提高并行性与健壮性， 以及简化配置与开发， 对于需要监听套接字的服务， 强烈推荐使用基于套接字的启动机制。 使用此机制后， 守护进程不再需要创建和绑定套接字， 而是由 <code>systemd</code> 接管这个工作。<code>systemd</code> 将会根据单元文件的设置， 预先创建所需的套接字， 并在第一个客户端请求接入的时候启动该服务，以实现服务的按需启动。 该机制的好处还在于， 预先创建好套接字之后， 所有使用此套接字通信的进程可以并行启动 (包括客户端和服务端)。 此外，重启服务只会导致丢失最低限度的客户端连接， 甚至不丢失任何客户端请求 (例如对于 <code>DNS </code>或 <code>syslog</code> 这样的无状态协议)。 因为套接字在服务重启期间始终保持有效并且可被访问， 同时所有客户端请求也都被排入队列等候处理。</p>
+<p>使用此机制之后， 守护进程必须要从 <code>systemd</code> 接收已创建好的套接字， 而不能自己创建并绑定套接字。 关于如何使用该机制，参见 <code>sd_listen_fds(3)</code> 与 <code>sd-daemon(3)</code> 手册。 只需要小小的修改， 即可在原有启动机制的基础上添加基于套接字的启动机制， 至于如何移植，详见后文。</p>
+<p><code>systemd</code> 通过 <code>.socket</code> 单元实现该机制，详见 <code>systemd.socket(5) </code>手册。 必须确保所有为支持基于套接字启动而创建的监听 socket 单元都被包含在 <code>sockets.target</code> 中。 建议在 <code>socket</code> 单元的 <code>"[Install]"</code> 小节加入 <code>WantedBy=sockets.target</code> 设置， 以确保在启用该单元时能够自动添加上述依赖关系。 除非明确设置了 <code>DefaultDependencies=no</code> ， 否则会为所有<code> socket</code> 单元隐含的创建必要的顺序依赖。 有关 <code>sockets.target</code> 的解释，详见<code> systemd.special(7)</code> 手册。 如果某 <code>socket</code> 单元已被包含在 <code>sockets.target</code> 中， 那么不建议在其中再添加任何额外的依赖关系 (例如 <code>multi-user.target</code> 之类)。</p>
+<h2 id="基于-D-Bus-的启动"><a href="#基于-D-Bus-的启动" class="headerlink" title="基于 D-Bus 的启动"></a>基于 <code>D-Bus</code> 的启动</h2><p>如果守护进程使用 <code>D-Bus</code> 与客户端通信， 那么它应该使用基于 <code>D-Bus</code> 的启动机制， 这样当客户端访问其 <code>D-Bus</code> 接口时， 该服务将被自动启动。 该机制是通过 <code>D-Bus service</code> 文件实现的 (不要与普通的单元文件混淆)。 为了确保让 <code>D-Bus</code> 使用 <code>systemd</code> 来启动与维护守护进程， 必须在这些 <code>D-Bus service</code> 文件中使用 <code>SystemdService=指明其匹配的服务单元</code>。 例如，对于文件名为 <code>org.freedesktop.RealtimeKit.service</code> 的 <code>D-Bus service</code> 来说， 为了将其绑定到 <code>rtkit-daemon.service</code> 服务单元， 必须确保在该文件中设置了 <code>SystemdService=rtkit-daemon.service</code> 指令。 注意，必须明确设置 <code>SystemdService=</code> 指令， 否则当服务单元<br>同时使用多种启动机制时， 可能会导致竞争条件的出现。</p>
+<h2 id="基于设备的启动"><a href="#基于设备的启动" class="headerlink" title="基于设备的启动"></a>基于设备的启动</h2><p>用于管理特定类型硬件的守护进程， 只应该在符合条件的硬件变为可用或者被插入时，才需要启动。 为了达到上述目的， 可以将服务的启动 / 停止与硬件的插入 / 拔出事件绑定。 当带有 <code>"systemd"</code> 标签的设备出现在 <code>sysfs/udev</code> 设备树中时， <code>systemd</code> 将会自动为其创建对应的 <code>device</code> 单元。 通过向这些单元中添加对其他单元的 <code>Wants= 依赖</code>， 就可以实现当该 <code>device</code> 单元被启动 (也就是硬件被插入) 时， 连带启动其他单元，从而实现基于设备的启动。 这可以通过向 <code>udev</code> 规则库中添加 <code>SYSTEMD_WANTS= 属性来实现</code>， 详见 <code>systemd.device(5)</code> 手册。 通常，并不是将 <code>service</code> 单元直接添加到设备的 <code>Wants=</code> 依赖中， 而是通过专用的<code> target</code> 单元间接添加。 例如，不是将 <code>bluetoothd.service</code> 添加到各种蓝牙设备的 <code>Wants=</code> 依赖中， 而是将 <code>bluetoothd.service</code> 添加到 <code>bluetooth.target</code> 的 <code>Wants=</code> 依赖中， 同时再将 <code> bluetooth.target</code> 添加到各种蓝牙设备的 <code>Wants=</code> 依赖中。 通过引入 <code>bluetooth.target</code> 这个抽象层， 系统管理员无需批量修改 <code>udev</code> 规则库， 仅通过 <code>systemctl enable|disable ...</code>  命令 修改 <code>bluetooth.target.wants/</code> 目录中的软链接， 即可控制 <code>bluetoothd.service</code> 的使用。</p>
+<h2 id="基于路径的启动"><a href="#基于路径的启动" class="headerlink" title="基于路径的启动"></a>基于路径的启动</h2><p>对于处理 <code>spool</code> 文件或目录的守护进程 (例如打印服务) 来说， 仅在 <code>spool</code> 文件或目录状态发生变化或者内容非空时， 才需要启动。 通过 <code>.path</code> 单元实现的、 基于路径的启动机制正好适用于这种场合， 详见 <code>systemd.path(5)</code> 手册。</p>
+<h2 id="基于定时器的启动"><a href="#基于定时器的启动" class="headerlink" title="基于定时器的启动"></a>基于定时器的启动</h2><p>对于周期性的操作 (例如垃圾文件清理或者网络对时)， 可以通过基于定时器的启动机制来实现。 这种机制通过.timer 单元实现，详见  <code>systemd.timer(5)</code> 手册。</p>
+<h2 id="其他启动方式"><a href="#其他启动方式" class="headerlink" title="其他启动方式"></a>其他启动方式</h2><p>在其他操作系统上还存在着其他的启动机制， 不过这些机制都可以被前述的各种机制的组合替代。 因此在这里不再赘述。</p>
+<h1 id="与-SYSTEMD-整合"><a href="#与-SYSTEMD-整合" class="headerlink" title="与 SYSTEMD 整合"></a>与 SYSTEMD 整合</h1><h2 id="编写-systemd-单元文件"><a href="#编写-systemd-单元文件" class="headerlink" title="编写 systemd 单元文件"></a>编写 <code>systemd</code> 单元文件</h2><p>在编写单元文件时应当考虑下列建议：</p>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">1. 尽可能不用 Type=forking 。 若非用不可，则必须正确设置 PIDFile= 指令。参见 systemd.service(5) 手册。</span><br><span class="line"></span><br><span class="line">2. 若守护进程在 D-Bus 上注册了一个名字， 则应尽可能使用 Type=dbus</span><br><span class="line"></span><br><span class="line">3. 设置一个易于理解的 Description=</span><br><span class="line"></span><br><span class="line">4. 确保 DefaultDependencies=yes ， 除非该单元必须在系统启动的早期启动或者必须在系统关闭的末期关闭。</span><br><span class="line"></span><br><span class="line">5. 通常无需显式定义依赖关系。 不过，如果确实需要显式定义依赖关系， 为了确保单元文件不局限于特定的发行版，仅应该依赖于 systemd.special(7) 中列出的单元以及自身所属软件包中提供的单元。</span><br><span class="line"></span><br><span class="line">6. 确保在 "[Install]" 小节中包含完整的启用信息(参见 systemd.unit(5) 手册)。 若希望自动启动该单元，则应该设置 WantedBy=multi-user.target 或 WantedBy=graphical.target 若希望自动启动该单元的套接字，则应该设置 WantedBy=sockets.target 。 通常你还希望在启用该单元时， 一起启用对应的套接字单元(假定为 foo.service)， 因此还应该设置 Also=foo.socket</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="安装-service-单元文件"><a href="#安装-service-单元文件" class="headerlink" title="安装 service 单元文件"></a>安装 <code>service</code> 单元文件</h2><p>当从源代码编译安装 ( <code>make install</code> ) 软件包时， 其中的系统服务单元文件会被默认安装到 <code>pkg-config systemd --variable=systemdsystemunitdir</code> 命令返回的目录中 (通常是 <code>/usr/lib/systemd/system</code> )； 而其中的用户服务单元文件会被默认安装到 <code>pkg-config systemd --variable=systemduserunitdir</code> 命令返回的目录中 (通是 <code>/usr/lib/systemd/user</code> )； 但并不应该使用 <code>systemctl enable ...</code>  命令启用它们。 当从包管理器安装 ( <code>rpm -i</code> ) 二进制软件包时， 其中的单元文件应该同样安装到上述位置。 但不同之处在于， 还应该使用 <code>systemctl enable ... </code> 命令启用它们， 因此安装的单元有可能会在开机时自动启动。</p>
+<h1 id="移植已有的守护进程"><a href="#移植已有的守护进程" class="headerlink" title="移植已有的守护进程"></a>移植已有的守护进程</h1><p>虽然 <code>systemd</code> 兼容传统的 <code>SysV</code> 初始化系统， 但是移植旧有的守护进程可以更好的利用 <code>systemd</code> 的先进特性。建议对旧有的 <code>SysV</code> 守护进程做如下改进： …[省略]…</p>
+<h1 id="放置守护进程的数据"><a href="#放置守护进程的数据" class="headerlink" title="放置守护进程的数据"></a>放置守护进程的数据</h1><p>建议遵守 <code>file-hierarchy(7)</code> 所建议的通用准则。</p>
+]]></content>
+      <categories>
+        <category>WebRTC</category>
+      </categories>
+      <tags>
+        <tag>守护进程</tag>
+      </tags>
+  </entry>
+</search>
